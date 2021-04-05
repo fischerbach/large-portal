@@ -89,7 +89,11 @@ def get_ip(app):
 
 @app.route('/')
 def index():
-    return render_template('index.html', articles=Articles().findByWeather(get_ip(app), weather_api))
+    return render_template(
+        'index.html', 
+        articles=Articles().findByWeather(get_ip(app), weather_api), 
+        weather=weather_api.get_local(get_ip(app))
+    )
 
 
 @app.errorhandler(404)
