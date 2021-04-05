@@ -7,13 +7,21 @@ app = Flask(__name__)
 
 from cachetools import cached, TTLCache
 cache = TTLCache(maxsize=25000, ttl=15*60)
+cache_fore = TTLCache(maxsize=25000, ttl = 6*60*60)
 class WeatherApiClient(object):
     def __init__(self, key='', base='http://api.weatherapi.com/v1'):
         self.key = key
         self.base = f"{base}"
+
     @cached(cache)
     def get_local(self, ip):
         url = f'{self.base}/current.json?key={self.key}&q={ip}'
+        response = requests.get(url)
+        return response.json()
+    
+    @cached(cache_fore)
+    def get_forecast(self, ip, days=1):
+        url = f'{self.base}/forecast.json?key={self.key}&q={ip}&days={days}'
         response = requests.get(url)
         return response.json()
 
@@ -79,6 +87,35 @@ class Articles(object):
 
         return list(filter(lambda article: apply(article, local_weather), articles))
 
+class Ads(object):
+    def __init__(self):
+        self.banners = {
+            'umbrella': {
+                'img':'/static/banner.png',
+                'conditions': '"cloud" in weather["forecast"]["forecastday"][0]["day"]["condition"]["text"]'
+            }
+        }
+
+    def get_all(self):
+        return list(self.banners.values())
+
+    def findByWeather(self, client_ip, weather_api):
+        local_weather = weather_api.get_forecast(client_ip)
+        print(local_weather)
+        banners = self.get_all()
+
+        def apply(banner, weather):
+
+            if banner['conditions'] != '':
+                try:
+                    return eval(banner['conditions'])
+                except:
+                    return False
+            return True
+
+        return list(filter(lambda banner: apply(banner, local_weather), banners))
+
+
 def get_ip(app):
     if app.debug:
         if request.args.get('ip'):
@@ -92,9 +129,9 @@ def index():
     return render_template(
         'index.html', 
         articles=Articles().findByWeather(get_ip(app), weather_api), 
-        weather=weather_api.get_local(get_ip(app))
+        weather=weather_api.get_local(get_ip(app)),
+        ads=Ads().findByWeather(get_ip(app), weather_api)
     )
-
 
 @app.errorhandler(404)
 def page_not_found_error(error):
