@@ -1,0 +1,4 @@
+.vscode
+__pycache__
+static/dist/.DS_Store
+.DS_Store
